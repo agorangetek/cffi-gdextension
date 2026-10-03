@@ -1,5 +1,4 @@
 # CFFI GDExtension
-[![Godot Asset Library page](https://img.shields.io/static/v1?logo=godotengine&label=asset%20library&color=478CBF&message=0.6.0)](https://godotengine.org/asset-library/asset/4470)
 [![Build](https://github.com/gilzoide/cffi-gdextension/actions/workflows/.build.yml/badge.svg?branch=main)](https://github.com/gilzoide/cffi-gdextension/actions/workflows/.build.yml)
 
 
