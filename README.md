@@ -12,12 +12,15 @@
   They are imported as [CFFILibrary](addons/cffi/cffi_library.gd) resources.
   + TODO: support the `[dependencies]` section
 - Editor export plugin that bundles the correct native library in builds, based on the configurations from ".ffilibrary" files
-- Supports built-in types like `int` and `float`, pointer types like `const char *` and struct types
-  + TODO: arrays, union, enums, function pointers
+- Supports built-in types like `int` and `float`, pointer types like `const char *`, struct types and array types
+  + Fixed-size arrays like `int[3]`, including as struct fields: reading such a field gives a `CFFISpan` over its elements
+  + Zero-sized arrays like `float[0]` for flexible array members: reading the field gives a `CFFIPointer` to the first element, and `CFFISpan.from` gives it a length
+  + TODO: union, enums, function pointers
 - Scoped type definitions, so that different types can be defined with the same name in different libraries.
 - Instantiate FFI types using `CFFIType.alloc`.
   The returned `CFFIOwnedValue` is RefCounted and releases the memory automatically whenever it gets destroyed.
 - Get/set struct fields by name from `CFFIPointer`s
+- `CFFISpan`, a pointer paired with an element count, which indexes, slices, duplicates and converts to and from packed arrays
 - Construct `String`s and `PackedByteArray`s from `CFFIPointer`s with a single method call
 - Use Dictionaries as literal struct values, for example when calling a function
 - `StreamPeerCFFIPointer`, a stream peer used to handle binary data streams from native pointers
@@ -134,7 +137,6 @@ The script [Test.gd](test/Test.gd) shows how to use the FFI to call the native l
 - Accept a pointer when expecting a value, just dereference it automagically
   + Accept a value when expecting pointer? Could be useful in function calls, but not when setting struct fields
 - Support defining and using unions
-- Support FFI array types, both fixed and variable length
 - Support variadic native function calls (the `variadic` flag is there, but the `ffi_cif` is not being prep'd correctly)
 - Support `[dependencies]` section in ".ffilibrary" files
 - Define enum values?
