@@ -143,6 +143,9 @@ jobs:
     permissions:
       contents: write
     steps:
+      # gh infers the repository from a git working tree, so the job needs one:
+      # without this it fails with "fatal: not a git repository".
+      - uses: actions/checkout@v7
       - name: Download the combined addon
         uses: actions/download-artifact@v8
         with:
@@ -158,5 +161,6 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" \
             "cffi-gdextension-${GITHUB_REF_NAME}.zip" \
+            --repo "${GITHUB_REPOSITORY}" \
             --title "cffi-gdextension ${GITHUB_REF_NAME}" \
             --generate-notes
