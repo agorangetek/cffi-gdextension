@@ -1,5 +1,5 @@
 # CFFI GDExtension
-[![Build](https://github.com/gilzoide/cffi-gdextension/actions/workflows/.build.yml/badge.svg?branch=main)](https://github.com/gilzoide/cffi-gdextension/actions/workflows/.build.yml)
+[![Build](https://github.com/agorangetek/cffi-gdextension/actions/workflows/.build.yml/badge.svg?branch=main)](https://github.com/agorangetek/cffi-gdextension/actions/workflows/.build.yml)
 
 > ⚠️ **Warning**
 >
