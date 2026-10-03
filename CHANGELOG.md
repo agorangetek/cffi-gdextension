@@ -1,5 +1,5 @@
 # Changelog
-## [Unreleased](https://github.com/gilzoide/cffi-gdextension/compare/0.3.0...HEAD)
+## [0.4.0](https://github.com/agorangetek/cffi-gdextension/releases/tag/v0.4.0)
 ### Added
 - `CFFI.get_pointer` for returning the inner pointer from Strings and Packed Arrays.
   Extremely dangerous (as with anything involving raw pointers), make sure you know what you're doing!
@@ -15,12 +15,20 @@
   Array types are decayed to pointers when used as function arguments.
 - `CFFIOwnedArray`, analog of `CFFIOwnedValue` but for arrays.
   Inherits from `CFFISpan` instead of `CFFIPointer`.
+- GitHub Actions workflow that builds every supported platform and publishes the
+  binaries as a GitHub Release whenever a `v*` tag is pushed.
 
 ### Changed
 - **Breaking**: `CFFI` now inherits from `Object` instead of `CFFIScope`
   + The API provided by `CFFIScope` was replicated into `CFFI`, so this change will only break if trying to cast CFFI to CFFIScope
 - **Breaking**: `CFFIType.alloc_array` and `CFFIPointer.duplicate_array` now returns `CFFIOwnedArray` instead of `CFFIOwnedValue`.
 - Updated libffi from v3.5.2 to [v3.8.0](https://github.com/libffi/libffi/releases/tag/v3.8.0)
+- Struct field access is much faster: reading a scalar field no longer goes
+  through an array-map lookup, and the object-returning reads (struct, `[N]` and
+  `[0]` fields, `get_field`) now share one code path. Measured on macOS arm64,
+  best of 3 runs of 300k accesses: scalar field 306.5 ns -> 35.2 ns, `[N]` field
+  489.6 ns -> 205.4 ns, `[0]` field 326.2 ns -> 205.7 ns, struct field
+  275.0 ns -> 205.8 ns, `get_field` 287.7 ns -> 249.9 ns.
 
 ### Removed
 - `CFFIOwnedValue.get_base_address`.
@@ -29,6 +37,27 @@
 ### Fixed
 - Godot 4.7 warning: `add_singleton: RefCounted singleton 'CFFI' will be disallowed soon; raw pointer will dangle when last Ref is released. Use Object singleton.`
 - `CFFIPointer::to_*_array` now copies the correct number of bytes into the resulting packed array.
+- Reading a fixed-size array struct field returned a `CFFISpan` of the *array* type
+  instead of its element type, so the span was `N` times too long and its element
+  size, `size_bytes`, stride, `get_pointer(i)` and `to_*_array()` conversions were
+  all wrong. Writes are now also kept inside the field.
+- A zero-sized array field (flexible array member) could not be indexed or spanned:
+  the field pointer's element type was the zero-sized array, so every offset by it
+  was a no-op.
+- A field declared after a flexible array member reported the type and offset of
+  the flexible array member.
+- `CFFISpan::to_byte_array` resized and copied the span's element count as if it
+  were a byte count.
+- Accessing a property on a struct-typed pointer, such as `address` or
+  `element_type`, raised `Unknown field: "address"` before falling through to the
+  real property. `get_field` now returns null for an unknown field as documented,
+  instead of erroring.
+- An argument that could not be converted to the declared parameter type crashed
+  the process: the converted-argument count was never checked, so a null argument
+  buffer reached `ffi_call`. It now fails with an error naming the argument and its
+  declared type. Passing a `float` where `void *` is declared was a reproducible
+  `SIGSEGV`.
+- A `CFFISpan` is now accepted where a `T *` parameter is declared.
 
 
 ## [0.3.0](https://github.com/gilzoide/cffi-gdextension/releases/tag/0.3.0)
