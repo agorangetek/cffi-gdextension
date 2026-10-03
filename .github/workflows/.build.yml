@@ -1,5 +1,5 @@
 name: Build
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 defaults:
   run:
     shell: bash
@@ -97,6 +97,16 @@ jobs:
           scons platform=${{ matrix.platform }} arch=${{ matrix.arch }} target=${{ matrix.target }}
         env:
           PYTHON_BIN: python3
+      - name: Sign the Apple artifacts
+        run: |
+          # arm64 will not load unsigned code, and the signature the linker leaves
+          # on a freshly linked dylib does not survive being zipped and unzipped by
+          # a user. Ad-hoc is enough, since there is no Developer ID here.
+          for f in addons/cffi/build/libcffi.*.dylib; do
+            [ -e "$f" ] || continue
+            codesign --force --sign - "$f"
+            codesign --verify "$f"
+          done
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -125,3 +135,28 @@ jobs:
             UNLICENSE
             addons/cffi/**
 
+  release:
+    name: Publish release
+    needs: [distribute_zip]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download the combined addon
+        uses: actions/download-artifact@v8
+        with:
+          name: cffi-gdextension
+          path: cffi-gdextension
+      - name: Package it
+        run: |
+          (cd cffi-gdextension && zip -qr "../cffi-gdextension-${GITHUB_REF_NAME}.zip" .)
+          ls -l "cffi-gdextension-${GITHUB_REF_NAME}.zip"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            "cffi-gdextension-${GITHUB_REF_NAME}.zip" \
+            --title "cffi-gdextension ${GITHUB_REF_NAME}" \
+            --generate-notes
