@@ -1,0 +1,88 @@
+name: Release
+# Publishing only. The twenty-platform build lives in .build.yml and does NOT
+# run on tags - a tag push opens this workflow instead, which downloads the
+# artifact that Build already uploaded for the tagged commit and releases it.
+# That is one job rather than twenty-two reproducing an artifact that already
+# exists. See the note at the top of .build.yml for what that costs.
+#
+# The whole flow is therefore:
+#
+#   push main  ->  Build runs, uploads the `cffi-gdextension` artifact
+#   push v*    ->  this runs and publishes that artifact
+#
+# so a tag must name a commit whose Build run SUCCEEDED. If it does not, this
+# fails with a message saying so rather than publishing something stale.
+on:
+  push:
+    tags: ['v*']
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # gh release create
+      actions: read     # gh run list / gh run download against the Build run
+    steps:
+      # gh infers the repository from a git working tree, so the job needs one:
+      # without this it fails with "fatal: not a git repository".
+      - uses: actions/checkout@v7
+
+      # The commit to publish is the one the tag checked out. Resolved from the
+      # working tree rather than trusted to a variable, so it cannot disagree
+      # with what is actually being tagged.
+      - name: Find the Build run for this commit
+        id: build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          echo "tag ${GITHUB_REF_NAME} -> commit ${sha}"
+
+          run_id=$(gh run list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --workflow .build.yml \
+            --commit "${sha}" \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')
+
+          if [ -z "${run_id}" ]; then
+            echo "::error::No successful Build run for ${sha}, so there is nothing to publish. Push this commit to main, wait for Build to go green, then move the tag."
+            exit 1
+          fi
+
+          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"
+          echo "publishing the artifact from Build run ${run_id}"
+
+      - name: Download the combined addon
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download "${{ steps.build.outputs.run_id }}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --name cffi-gdextension \
+            --dir cffi-gdextension
+
+      - name: Package it
+        run: |
+          set -euo pipefail
+          (cd cffi-gdextension && zip -qr "../cffi-gdextension-${GITHUB_REF_NAME}.zip" .)
+          ls -l "cffi-gdextension-${GITHUB_REF_NAME}.zip"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" \
+            "cffi-gdextension-${GITHUB_REF_NAME}.zip" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "cffi-gdextension ${GITHUB_REF_NAME}" \
+            --generate-notes
