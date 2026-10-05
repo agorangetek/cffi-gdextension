@@ -31,9 +31,26 @@ Variant CFFIFunction::invoke(const CFFIValueTuple& argument_data) {
 	ERR_FAIL_COND_V_MSG(argument_data.size() != argument_types.size(), Variant(),
 		String("%s expects %d arguments, but %d were converted")
 			% Array::make(name, (int64_t) argument_types.size(), (int64_t) argument_data.size()));
-	PackedByteArray return_data;
-	return_data.resize(MAX(return_type->get_size(), sizeof(ffi_arg)));
-	ffi_call(&ffi_handle, (void(*)()) address, (void *) return_data.ptr(), (void **) argument_data.get_value_addresses());
+	// Where ffi_call writes the return value. This used to be a PackedByteArray
+	// resized on every call, which heap-allocated for even a 4-byte int return -
+	// and that is the ONE allocation on this path that is the caller's return
+	// value, paid per returned value. Every scalar type and any struct up to 16
+	// bytes now fits in a stack buffer, so only a genuinely large return reaches
+	// the heap.
+	//
+	// The floor matters here: sizeof(ffi_arg) is 8, and libffi is entitled to
+	// write a full ffi_arg for a narrower return, which is why the old code
+	// asked for MAX(size, sizeof(ffi_arg)) and why the buffer below is 16.
+	static constexpr int64_t INLINE_RETURN_BYTES = 16;
+	uint8_t inline_return[INLINE_RETURN_BYTES];
+	PackedByteArray heap_return;
+	uint8_t *return_data = inline_return;
+	const int64_t return_size = return_type->get_size();
+	if (return_size > INLINE_RETURN_BYTES) {
+		heap_return.resize(return_size);
+		return_data = heap_return.ptrw();
+	}
+	ffi_call(&ffi_handle, (void(*)()) address, (void *) return_data, (void **) argument_data.get_value_addresses());
 	Variant return_value;
 	bool return_type_valid = return_type->data_to_variant(return_data, return_value);
 	ERR_FAIL_COND_V_MSG(!return_type_valid, Variant(), "Return type is not supported");
