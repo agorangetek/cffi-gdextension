@@ -1,4 +1,16 @@
 # Changelog
+## [0.5.0](https://github.com/agorangetek/cffi-gdextension/releases/tag/v0.5.0)
+### Fixed
+- `CFFISpan` element access allocated a `CFFIPointer` per element.
+  `get_value` and `set_value` both went through `get_pointer`, which `memnew`'d a
+  temporary on every access purely to carry the element type and an address the
+  span can compute itself. They now convert against that address directly, the
+  way `CFFIPointer` does.
+  Measured on macOS arm64, 1024 elements x 2000 iterations: `set_value`
+  214.9 ns -> 65.4 ns and `get_value` 186.0 ns -> 34.1 ns, so span access now
+  costs what the equivalent `CFFIPointer` access costs.
+  `get_pointer` itself is unchanged and still returns a real `CFFIPointer`.
+
 ## [0.4.0](https://github.com/agorangetek/cffi-gdextension/releases/tag/v0.4.0)
 ### Added
 - `CFFI.get_pointer` for returning the inner pointer from Strings and Packed Arrays.
