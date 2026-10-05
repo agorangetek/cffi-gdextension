@@ -1,4 +1,24 @@
 # Changelog
+## [0.6.0](https://github.com/agorangetek/cffi-gdextension/releases/tag/v0.6.0)
+### Changed
+- Resolving a type by name no longer compiles regular expressions.
+  `CFFITypeParser::parse` built both of its patterns with
+  `RegEx::create_from_string` on every call, and `find_type` reaches it on every
+  `CFFI["..."]` lookup and every `cast_elements("name")`. Compiling the two
+  patterns cost more than the lookup itself, so it is now a single hand-written
+  scan with no pattern compilation. Measured on macOS arm64, 50 000 iterations:
+  `CFFI["int32_t"]` 2277.8 ns -> 79.8 ns (28.5x), `CFFI["int32_t *"]`
+  2880.0 ns -> 340.0 ns, `cast_elements` 2486.7 ns -> 272.3 ns.
+  The accepted grammar is unchanged, verified against the previous parser over a
+  64-name corpus.
+
+### Fixed
+- `CFFIFunction::invoke` allocated a `PackedByteArray` for the return value on
+  every call, including a four-byte `int` return. The value now lands in a
+  16-byte stack buffer, and only a return larger than that reaches the heap.
+  Measured, 200 000 iterations: `invoke` with one argument 179.3 ns -> ~157 ns,
+  with three arguments 289.7 ns -> ~277 ns.
+
 ## [0.5.0](https://github.com/agorangetek/cffi-gdextension/releases/tag/v0.5.0)
 ### Fixed
 - `CFFISpan` element access allocated a `CFFIPointer` per element.
