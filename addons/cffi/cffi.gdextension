@@ -6,8 +6,8 @@ reloadable = true
 
 [libraries]
 
-macos.debug = "build/libcffi.macos.template_debug.arm64.dylib"
-macos.release = "build/libcffi.macos.template_release.arm64.dylib"
+macos.debug = "build/libcffi.macos.template_debug.universal.dylib"
+macos.release = "build/libcffi.macos.template_release.universal.dylib"
 ios.debug = "build/libcffi.ios.template_debug.universal.dylib"
 ios.release = "build/libcffi.ios.template_release.universal.dylib"
 windows.debug.x86_32 = "build/libcffi.windows.template_debug.x86_32.dll"

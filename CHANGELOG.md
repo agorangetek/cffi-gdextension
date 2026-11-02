@@ -8,10 +8,6 @@
   `CFFIPointer` or a `CFFIFunction`, and the result uses the same marshalling
   path as `CFFILibraryHandle.get_function()`.
 
-### Changed
-- macOS binaries are built for `arm64` only. Universal builds are no longer
-  produced, and `cffi.gdextension` points at the `.arm64.dylib` names.
-
 ## [0.6.0](https://github.com/agorangetek/cffi-gdextension/releases/tag/v0.6.0)
 ### Changed
 - Resolving a type by name no longer compiles regular expressions.
