@@ -1,4 +1,17 @@
 # Changelog
+## [0.7.0](https://github.com/agorangetek/cffi-gdextension/releases/tag/v0.7.0)
+### Added
+- `CFFI.get_function_at()`, which wraps a raw code address into a `CFFIFunction`
+  so functions that are only reachable through a pointer can be invoked from
+  script: COM/vtable methods, callbacks stored in structs, or `dlsym()` results
+  that are not re-exported. The address may be passed as an `int`, a
+  `CFFIPointer` or a `CFFIFunction`, and the result uses the same marshalling
+  path as `CFFILibraryHandle.get_function()`.
+
+### Changed
+- macOS binaries are built for `arm64` only. Universal builds are no longer
+  produced, and `cffi.gdextension` points at the `.arm64.dylib` names.
+
 ## [0.6.0](https://github.com/agorangetek/cffi-gdextension/releases/tag/v0.6.0)
 ### Changed
 - Resolving a type by name no longer compiles regular expressions.
