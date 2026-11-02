@@ -86,8 +86,13 @@ jobs:
       fail-fast: false
       matrix:
         target: [template_debug, template_release]
-        arch: [universal]
         platform: [macos, ios]
+        arch: [arm64, universal]
+        exclude:
+          - platform: macos
+            arch: universal
+          - platform: ios
+            arch: arm64
     steps:
       - uses: actions/checkout@v7
         with:
