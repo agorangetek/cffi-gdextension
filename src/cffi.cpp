@@ -1,11 +1,14 @@
 #include "cffi.hpp"
 #include "cffi_callable_function.hpp"
+#include "cffi_function.hpp"
 #include "cffi_library_handle.hpp"
 #include "cffi_pointer.hpp"
 #include "cffi_struct_type.hpp"
 #include "cffi_type.hpp"
 
 #include <godot_cpp/classes/engine.hpp>
+
+#include <cstdint>
 
 namespace cffi {
 
@@ -158,10 +161,53 @@ Ref<CFFICallableFunction> CFFI::create_function(const Callable& callable, const 
 	return scope->create_function(callable, return_type, argument_types);
 }
 
+static void *variant_to_code_address(const Variant& value) {
+	switch (value.get_type()) {
+		case Variant::Type::INT: {
+			int64_t address = value;
+			return address > 0 ? (void *) (uintptr_t) address : nullptr;
+		}
+		case Variant::Type::OBJECT:
+			if (CFFIPointer *pointer = Object::cast_to<CFFIPointer>(value)) {
+				return pointer->address_offset_by(0);
+			}
+			if (CFFIFunction *function = Object::cast_to<CFFIFunction>(value)) {
+				return function->get_code_address();
+			}
+			return nullptr;
+		default:
+			return nullptr;
+	}
+}
+
+Ref<CFFIFunction> CFFI::get_function_at(const Variant& pointer, const Variant& return_type_var, const Array& argument_types_arr, bool is_variadic) const {
+	void *address = variant_to_code_address(pointer);
+	ERR_FAIL_COND_V_MSG(
+		address == nullptr,
+		nullptr,
+		String("Invalid function address: %s. Expected an int address, a CFFIPointer or a CFFIFunction.") % pointer.stringify()
+	);
+
+	Ref<CFFIType> return_type = CFFIType::from_variant(return_type_var, scope.ptr());
+	ERR_FAIL_COND_V_MSG(return_type.is_null(), nullptr, String("Could not find return type: %s") % return_type_var.stringify());
+
+	CFFITypeTuple argument_types = CFFITypeTuple::from_array(argument_types_arr, scope.ptr());
+	ERR_FAIL_COND_V_MSG(argument_types.size() != (uint32_t) argument_types_arr.size(), nullptr, "Invalid argument types");
+
+	return memnew(CFFIFunction(
+		String("0x") + String::num_uint64((uint64_t) address, 16),
+		address,
+		return_type,
+		argument_types,
+		is_variadic
+	));
+}
+
 void CFFI::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("find_type", "name"), &CFFI::find_type);
 	ClassDB::bind_method(D_METHOD("define_struct", "name", "fields"), &CFFI::define_struct);
 	ClassDB::bind_method(D_METHOD("create_function", "callable", "return_type", "argument_types"), &CFFI::create_function, DEFVAL(Array()));
+	ClassDB::bind_method(D_METHOD("get_function_at", "pointer", "return_type", "argument_types", "is_variadic"), &CFFI::get_function_at, DEFVAL(Array()), DEFVAL(false));
 
 	ClassDB::bind_method(D_METHOD("get_scope"), &CFFI::get_scope);
 	ClassDB::bind_method(D_METHOD("open", "name_or_path"), &CFFI::open);
